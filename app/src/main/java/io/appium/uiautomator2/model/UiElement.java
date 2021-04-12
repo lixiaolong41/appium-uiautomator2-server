@@ -142,6 +142,11 @@ public abstract class UiElement<R, E extends UiElement<R, E>> {
         return get(Attribute.INDEX, -1);
     }
 
+    public int getInstance() {
+        return get(Attribute.INSTANCE, -1);
+    }
+
+
     public abstract List<E> getChildren();
 
     public String getBounds() {

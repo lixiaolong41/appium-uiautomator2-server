@@ -46,6 +46,7 @@ public enum Attribute {
     ORIGINAL_TEXT(new String[]{"original-text"}, false, false),
     BOUNDS(new String[]{"bounds"}),
     INDEX(new String[]{"index"}, false, true),
+    INSTANCE(new String[]{"instance"}, false, false),
     DISPLAYED(new String[]{"displayed"}),
     CONTENT_SIZE(new String[]{"contentSize"}, true, false);
 
