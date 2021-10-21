@@ -39,12 +39,20 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
+import org.jdom2.Document;
+import org.jdom2.Namespace;
+import org.jdom2.filter.Filters;
+import org.jdom2.input.JDOMParseException;
+import org.jdom2.input.SAXBuilder;
+import org.jdom2.xpath.XPathExpression;
+import org.jdom2.xpath.XPathFactory;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
@@ -99,6 +107,10 @@ public class AccessibilityNodeInfoDumper {
         serializer.attribute(NAMESPACE, "height", Integer.toString(size.y));
     }
 
+    private void addInstance(String className, HashMap<String, Integer> classInstanceMap) throws  IOException {
+        serializer.attribute(NAMESPACE, "instance", Integer.toString(classInstanceMap.get(className)));
+    }
+
     private static String toXmlNodeName(@Nullable String className) {
         if (StringHelpers.isBlank(className)) {
             return DEFAULT_VIEW_CLASS_NAME;
@@ -125,11 +137,15 @@ public class AccessibilityNodeInfoDumper {
         return fixedName;
     }
 
-    private void serializeUiElement(UiElement<?, ?> uiElement, boolean isIndexed) throws IOException {
+    private void serializeUiElement(UiElement<?, ?> uiElement, boolean isIndexed, HashMap<String, Integer> classInstanceMap) throws IOException {
         final String className = uiElement.getClassName();
         final String nodeName = toXmlNodeName(className);
         serializer.startTag(NAMESPACE, nodeName);
-
+        if (classInstanceMap.get(className) == null) {
+            classInstanceMap.put(className, 0);
+        }else {
+            classInstanceMap.put(className, classInstanceMap.get(className) + 1);
+        }
         for (Attribute attr : uiElement.attributeKeys()) {
             if (!attr.isExposableToXml()) {
                 continue;
@@ -140,6 +156,7 @@ public class AccessibilityNodeInfoDumper {
             }
             serializer.attribute(NAMESPACE, attr.getName(), toSafeString(String.valueOf(value), NON_XML_CHAR_REPLACEMENT));
         }
+        addInstance(className, classInstanceMap);
         if (shouldAddDisplayInfo) {
             addDisplayInfo();
             // Display info is only added once to the root node
@@ -153,7 +170,8 @@ public class AccessibilityNodeInfoDumper {
         }
 
         for (UiElement<?, ?> child : uiElement.getChildren()) {
-            serializeUiElement(child, isIndexed);
+
+            serializeUiElement(child, isIndexed, classInstanceMap);
         }
         serializer.endTag(NAMESPACE, nodeName);
     }
@@ -169,7 +187,8 @@ public class AccessibilityNodeInfoDumper {
             final UiElement<?, ?> uiRootElement = root == null
                     ? UiElementSnapshot.take(getCachedWindowRoots(), NotificationListener.getInstance().getToastMessage(), includedAttributes)
                     : UiElementSnapshot.take(root, includedAttributes);
-            serializeUiElement(uiRootElement, isIndexed);
+            HashMap<String, Integer> classInstanceMap = new HashMap<>();
+            serializeUiElement(uiRootElement, isIndexed, classInstanceMap);
             serializer.endDocument();
             Logger.debug(String.format("The source XML tree (%s bytes) has been fetched in %sms",
                     outputStream.size(), SystemClock.uptimeMillis() - startTime));
